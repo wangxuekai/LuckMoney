@@ -1,0 +1,2134 @@
+Index: app/src/main/java/xyz/monkeytong/hongbao/fragments/CommentSettingsFragment.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/xyz/monkeytong/hongbao/fragments/CommentSettingsFragment.java	(revision )
++++ app/src/main/java/xyz/monkeytong/hongbao/fragments/CommentSettingsFragment.java	(revision )
+@@ -0,0 +1,47 @@
++package xyz.monkeytong.hongbao.fragments;
++
++import android.os.Build;
++import android.os.Bundle;
++import android.preference.Preference;
++import android.preference.PreferenceFragment;
++import android.preference.PreferenceManager;
++import android.widget.Toast;
++import xyz.monkeytong.hongbao.R;
++
++/**
++ * Created by Zhongyi on 2/4/16.
++ */
++public class CommentSettingsFragment extends PreferenceFragment {
++    @Override
++    public void onCreate(Bundle savedInstanceState) {
++        super.onCreate(savedInstanceState);
++        addPreferencesFromResource(R.xml.comment_preferences);
++        setPrefListeners();
++    }
++
++    private void setPrefListeners() {
++        Preference updatePref = findPreference("pref_comment_switch");
++        if (android.os.Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
++            updatePref.setEnabled(false);
++        }
++        Toast.makeText(getActivity(), "该功能尚处于实验中,只能自动填充感谢语,无法直接发送.", Toast.LENGTH_LONG).show();
++
++        Preference commentWordsPref = findPreference("pref_comment_words");
++        String summary = getResources().getString(R.string.pref_comment_words_summary);
++        String value = PreferenceManager.getDefaultSharedPreferences(getActivity()).getString("pref_comment_words", "");
++        if (value.length() > 0) commentWordsPref.setSummary(summary + ":" + value);
++
++        commentWordsPref.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
++            @Override
++            public boolean onPreferenceChange(Preference preference, Object o) {
++                String summary = getResources().getString(R.string.pref_comment_words_summary);
++                if (o != null && o.toString().length() > 0) {
++                    preference.setSummary(summary + ":" + o.toString());
++                } else {
++                    preference.setSummary(summary);
++                }
++                return true;
++            }
++        });
++    }
++}
+Index: app/src/main/java/xyz/monkeytong/hongbao/activities/SeekBarPreference.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/xyz/monkeytong/hongbao/activities/SeekBarPreference.java	(revision )
++++ app/src/main/java/xyz/monkeytong/hongbao/activities/SeekBarPreference.java	(revision )
+@@ -0,0 +1,92 @@
++package xyz.monkeytong.hongbao.activities;
++
++import android.content.Context;
++import android.content.SharedPreferences;
++import android.preference.DialogPreference;
++import android.util.AttributeSet;
++import android.view.View;
++import android.widget.EditText;
++import android.widget.SeekBar;
++import android.widget.TextView;
++import org.w3c.dom.Text;
++import xyz.monkeytong.hongbao.R;
++
++/**
++ * Created by Zhongyi on 2/3/16.
++ */
++public class SeekBarPreference extends DialogPreference {
++    private SeekBar seekBar;
++    private TextView textView;
++    private String hintText, prefKind;
++
++    public SeekBarPreference(Context context, AttributeSet attrs) {
++        super(context, attrs);
++        setDialogLayoutResource(R.layout.preference_seekbar);
++
++        for (int i = 0; i < attrs.getAttributeCount(); i++) {
++            String attr = attrs.getAttributeName(i);
++            if (attr.equalsIgnoreCase("pref_kind")) {
++                prefKind = attrs.getAttributeValue(i);
++                break;
++            }
++        }
++        if (prefKind.equals("pref_open_delay")) {
++            hintText = "拆开红包";
++        } else if (prefKind.equals("pref_comment_delay")) {
++            hintText = "发送回复(暂不支持延时)";
++        }
++    }
++
++    @Override
++    protected void onBindDialogView(View view) {
++        super.onBindDialogView(view);
++
++        SharedPreferences pref = getSharedPreferences();
++
++        int delay = pref.getInt(prefKind, 0);
++        this.seekBar = (SeekBar) view.findViewById(R.id.delay_seekBar);
++        this.seekBar.setProgress(delay);
++
++        if (prefKind.equals("pref_comment_delay")) {
++            this.seekBar.setEnabled(false);
++        }
++
++        this.textView = (TextView) view.findViewById(R.id.pref_seekbar_textview);
++        if (delay == 0) {
++            this.textView.setText("立即" + hintText);
++        } else {
++            this.textView.setText("延迟" + delay + "秒" + hintText);
++        }
++
++        this.seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
++            @Override
++            public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
++                if (i == 0) {
++                    textView.setText("立即" + hintText);
++                } else {
++                    textView.setText("延迟" + i + "秒" + hintText);
++                }
++            }
++
++            @Override
++            public void onStartTrackingTouch(SeekBar seekBar) {
++
++            }
++
++            @Override
++            public void onStopTrackingTouch(SeekBar seekBar) {
++
++            }
++        });
++    }
++
++    @Override
++    protected void onDialogClosed(boolean positiveResult) {
++        if (positiveResult) {
++            SharedPreferences.Editor editor = getEditor();
++            editor.putInt(prefKind, this.seekBar.getProgress());
++            editor.commit();
++        }
++        super.onDialogClosed(positiveResult);
++    }
++}
+Index: app/src/main/res/xml/general_preferences.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/res/xml/general_preferences.xml	(revision )
++++ app/src/main/res/xml/general_preferences.xml	(revision )
+@@ -0,0 +1,81 @@
++<?xml version="1.0" encoding="utf-8"?>
++<PreferenceScreen xmlns:tools="http://schemas.android.com/tools"
++                  xmlns:android="http://schemas.android.com/apk/res/android"
++                  tools:context=".SettingsActivity"
++                  android:icon="@null">
++    <PreferenceCategory
++            android:title="监视选项"
++            android:layout="@layout/preference_category">
++        <CheckBoxPreference
++                android:key="pref_watch_notification"
++                android:title="监视系统通知"
++                android:summary="读取新消息通知中的红包提示并进入聊天页"
++                android:defaultValue="true"
++                android:layout="@layout/preference_checkbox"/>
++        <CheckBoxPreference
++                android:key="pref_watch_list"
++                android:title="监视聊天列表"
++                android:summary="读取聊天列表中的红包提示并进入聊天页"
++                android:layout="@layout/preference_checkbox"
++                android:defaultValue="false"/>
++    </PreferenceCategory>
++    <PreferenceCategory
++            android:title="防封号选项"
++            android:layout="@layout/preference_category">
++        <CheckBoxPreference
++                android:key="pref_watch_chat"
++                android:title="自动拆开红包"
++                android:layout="@layout/preference_checkbox"
++                android:defaultValue="true"/>
++        <xyz.monkeytong.hongbao.activities.SeekBarPreference
++                android:key="pref_open_delay"
++                android:title="延时拆开红包"
++                pref_kind="pref_open_delay"
++                android:layout="@layout/preference_checkbox"/>
++        <CheckBoxPreference
++                android:key="pref_watch_self"
++                android:title="拆开自己发的红包"
++                android:layout="@layout/preference_checkbox"
++                android:defaultValue="true"/>
++        <EditTextPreference
++                android:key="pref_watch_exclude_words"
++                android:title="屏蔽红包文字"
++                android:summary="@string/pref_watch_exclude_words_summary"
++                android:layout="@layout/preference_checkbox"/>
++    </PreferenceCategory>
++    <PreferenceCategory
++            android:title="关于应用"
++            android:layout="@layout/preference_category">
++        <Preference
++                android:key="pref_etc_check_update"
++                android:title="检查新版本"
++                android:summary="http://dwz.cn/WeChatLuckyMoney"
++                android:layout="@layout/preference_checkbox"/>
++        <Preference
++                android:key="pref_etc_issue"
++                android:title="帮助与反馈"
++                android:summary="前往Github项目主页提交issue"
++                android:layout="@layout/preference_checkbox"/>
++    </PreferenceCategory>
++    <PreferenceCategory
++            android:title="实验功能"
++            android:layout="@layout/preference_category">
++        <CheckBoxPreference
++                android:key="pref_watch_on_lock"
++                android:title="息屏抢红包"
++                android:summary="保持30分钟后台活跃,可能会极大增加电量消耗,请谨慎使用"
++                android:layout="@layout/preference_checkbox"
++                android:defaultValue="false"/>
++        <PreferenceScreen
++                android:key="pref_auto_comment"
++                android:title="拆开红包后自动回复"
++                android:layout="@layout/preference_checkbox">
++            <intent android:action="android.intent.action.VIEW"
++                    android:targetPackage="xyz.monkeytong.hongbao"
++                    android:targetClass="xyz.monkeytong.hongbao.activities.SettingsActivity">
++                <extra android:name="title" android:value="自动回复设置"/>
++                <extra android:name="frag_id" android:value="CommentSettingsFragment"/>
++            </intent>
++        </PreferenceScreen>
++    </PreferenceCategory>
++</PreferenceScreen>
+\ No newline at end of file
+Index: app/src/main/java/xyz/monkeytong/hongbao/fragments/GeneralSettingsFragment.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/xyz/monkeytong/hongbao/fragments/GeneralSettingsFragment.java	(revision )
++++ app/src/main/java/xyz/monkeytong/hongbao/fragments/GeneralSettingsFragment.java	(revision )
+@@ -0,0 +1,64 @@
++package xyz.monkeytong.hongbao.fragments;
++
++import android.content.Intent;
++import android.os.Bundle;
++import android.preference.Preference;
++import android.preference.PreferenceFragment;
++import android.preference.PreferenceManager;
++import xyz.monkeytong.hongbao.R;
++import xyz.monkeytong.hongbao.activities.WebViewActivity;
++import xyz.monkeytong.hongbao.utils.UpdateTask;
++
++/**
++ * Created by Zhongyi on 2/4/16.
++ */
++public class GeneralSettingsFragment extends PreferenceFragment {
++    @Override
++    public void onCreate(Bundle savedInstanceState) {
++        super.onCreate(savedInstanceState);
++        addPreferencesFromResource(R.xml.general_preferences);
++        setPrefListeners();
++    }
++
++    private void setPrefListeners() {
++        // Check for updates
++        Preference updatePref = findPreference("pref_etc_check_update");
++        updatePref.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
++            public boolean onPreferenceClick(Preference preference) {
++                new UpdateTask(getActivity().getApplicationContext(), true).update();
++                return false;
++            }
++        });
++
++        // Open issue
++        Preference issuePref = findPreference("pref_etc_issue");
++        issuePref.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
++            public boolean onPreferenceClick(Preference preference) {
++                Intent webViewIntent = new Intent(getActivity(), WebViewActivity.class);
++                webViewIntent.putExtra("title", "Github Issues");
++                webViewIntent.putExtra("url", getString(R.string.url_github_issues));
++                webViewIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
++                startActivity(webViewIntent);
++                return false;
++            }
++        });
++
++        Preference excludeWordsPref = findPreference("pref_watch_exclude_words");
++        String summary = getResources().getString(R.string.pref_watch_exclude_words_summary);
++        String value = PreferenceManager.getDefaultSharedPreferences(getActivity()).getString("pref_watch_exclude_words", "");
++        if (value.length() > 0) excludeWordsPref.setSummary(summary + ":" + value);
++
++        excludeWordsPref.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
++            @Override
++            public boolean onPreferenceChange(Preference preference, Object o) {
++                String summary = getResources().getString(R.string.pref_watch_exclude_words_summary);
++                if (o != null && o.toString().length() > 0) {
++                    preference.setSummary(summary + ":" + o.toString());
++                } else {
++                    preference.setSummary(summary);
++                }
++                return true;
++            }
++        });
++    }
++}
+Index: app/build.gradle
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/build.gradle	(revision )
++++ app/build.gradle	(revision )
+@@ -0,0 +1,41 @@
++apply plugin: 'com.android.application'
++
++android {
++    compileSdkVersion 21
++    buildToolsVersion "21.1.2"
++
++    defaultConfig {
++        applicationId "xyz.monkeytong.hongbao"
++        minSdkVersion 16
++        targetSdkVersion 22
++        versionCode 2
++        versionName "v2.3.1"
++        ndk {
++            //设置支持的SO库架构
++            abiFilters 'armeabi' //, 'x86', 'armeabi-v7a', 'x86_64', 'arm64-v8a'
++        }
++    }
++
++    signingConfigs {
++        releaseConfig {
++            storeFile file("../monkeytong.jks")
++            storePassword project.hasProperty("KEYSTORE_PASS") ? KEYSTORE_PASS : System.getenv("KEYSTORE_PASS")
++            keyAlias project.hasProperty("ALIAS_NAME") ? ALIAS_NAME : System.getenv("ALIAS_NAME")
++            keyPassword project.hasProperty("ALIAS_PASS") ? ALIAS_PASS : System.getenv("ALIAS_PASS")
++        }
++    }
++
++    buildTypes {
++        release {
++            minifyEnabled true
++            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
++            signingConfig signingConfigs.releaseConfig
++        }
++    }
++}
++
++dependencies {
++    compile fileTree(dir: 'libs', include: ['*.jar'])
++    compile 'com.android.support:appcompat-v7:22.1.1'
++    compile 'com.tencent.bugly:crashreport:latest.release'  //其中latest.release指代最新版本号，也可以指定明确的版本号，例如1.2.8
++}
+Index: app/src/main/java/xyz/monkeytong/hongbao/services/HongbaoService.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/xyz/monkeytong/hongbao/services/HongbaoService.java	(revision )
++++ app/src/main/java/xyz/monkeytong/hongbao/services/HongbaoService.java	(revision )
+@@ -0,0 +1,348 @@
++package xyz.monkeytong.hongbao.services;
++
++import android.accessibilityservice.AccessibilityService;
++import android.app.Notification;
++import android.app.PendingIntent;
++import android.content.ComponentName;
++import android.content.SharedPreferences;
++import android.content.pm.PackageManager;
++import android.graphics.Rect;
++import android.os.Bundle;
++import android.os.Parcelable;
++import android.preference.PreferenceManager;
++import android.util.Log;
++import android.view.accessibility.AccessibilityEvent;
++import android.view.accessibility.AccessibilityNodeInfo;
++import xyz.monkeytong.hongbao.utils.HongbaoSignature;
++import xyz.monkeytong.hongbao.utils.PowerUtil;
++
++import java.util.List;
++
++import xyz.monkeytong.hongbao.utils.HongbaoSignature;
++import xyz.monkeytong.hongbao.utils.PowerUtil;
++
++
++public class HongbaoService extends AccessibilityService implements SharedPreferences.OnSharedPreferenceChangeListener {
++    private static final String WECHAT_DETAILS_EN = "Details";
++    private static final String WECHAT_DETAILS_CH = "红包详情";
++    private static final String WECHAT_BETTER_LUCK_EN = "Better luck next time!";
++    private static final String WECHAT_BETTER_LUCK_CH = "手慢了";
++    private static final String WECHAT_EXPIRES_CH = "红包已失效";
++    private static final String WECHAT_VIEW_SELF_CH = "查看红包";
++    private static final String WECHAT_VIEW_OTHERS_CH = "领取红包";
++    private static final String WECHAT_NOTIFICATION_TIP = "[微信红包]";
++    private static final String WECHAT_LUCKMONEY_RECEIVE_ACTIVITY = "LuckyMoneyReceiveUI";
++    private static final String WECHAT_LUCKMONEY_DETAIL_ACTIVITY = "LuckyMoneyDetailUI";
++    private static final String WECHAT_LUCKMONEY_GENERAL_ACTIVITY = "LauncherUI";
++    private String currentActivityName = WECHAT_LUCKMONEY_GENERAL_ACTIVITY;
++
++    private AccessibilityNodeInfo rootNodeInfo, mReceiveNode, mUnpackNode;
++    private boolean mLuckyMoneyPicked, mLuckyMoneyReceived;
++    private int mUnpackCount = 0;
++    private boolean mMutex = false, mListMutex = false;
++    private HongbaoSignature signature = new HongbaoSignature();
++
++    private PowerUtil powerUtil;
++    private SharedPreferences sharedPreferences;
++
++    /**
++     * AccessibilityEvent
++     *
++     * @param event 事件
++     */
++    @Override
++    public void onAccessibilityEvent(AccessibilityEvent event) {
++        if (sharedPreferences == null) return;
++
++        setCurrentActivityName(event);
++
++        /* 检测通知消息 */
++        if (!mMutex) {
++            if (sharedPreferences.getBoolean("pref_watch_notification", false) && watchNotifications(event)) return;
++            if (sharedPreferences.getBoolean("pref_watch_list", false) && watchList(event)) return;
++            mListMutex = false;
++        }
++
++        if (sharedPreferences.getBoolean("pref_watch_chat", false)) watchChat(event);
++    }
++
++    private void watchChat(AccessibilityEvent event) {
++        this.rootNodeInfo = getRootInActiveWindow();
++
++        if (rootNodeInfo == null) return;
++
++        mReceiveNode = null;
++        mUnpackNode = null;
++
++        checkNodeInfo(event.getEventType());
++
++        /* 如果已经接收到红包并且还没有戳开 */
++        if (mLuckyMoneyReceived && !mLuckyMoneyPicked && (mReceiveNode != null)) {
++            mMutex = true;
++
++            mReceiveNode.getParent().performAction(AccessibilityNodeInfo.ACTION_CLICK);
++            mLuckyMoneyReceived = false;
++            mLuckyMoneyPicked = true;
++        }
++        /* 如果戳开但还未领取 */
++        if (mUnpackCount == 1 && (mUnpackNode != null)) {
++            int delayFlag = sharedPreferences.getInt("pref_open_delay", 0) * 1000;
++            new android.os.Handler().postDelayed(
++                    new Runnable() {
++                        public void run() {
++                            try {
++                                mUnpackNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
++                            } catch (Exception e) {
++                                mMutex = false;
++                                mLuckyMoneyPicked = false;
++                                mUnpackCount = 0;
++                            }
++                        }
++                    },
++                    delayFlag);
++        }
++    }
++
++    private void setCurrentActivityName(AccessibilityEvent event) {
++        if (event.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
++            return;
++        }
++
++        try {
++            ComponentName componentName = new ComponentName(
++                    event.getPackageName().toString(),
++                    event.getClassName().toString()
++            );
++
++            getPackageManager().getActivityInfo(componentName, 0);
++            currentActivityName = componentName.flattenToShortString();
++        } catch (PackageManager.NameNotFoundException e) {
++            currentActivityName = WECHAT_LUCKMONEY_GENERAL_ACTIVITY;
++        }
++    }
++
++    private boolean watchList(AccessibilityEvent event) {
++        if (mListMutex) return false;
++        mListMutex = true;
++        AccessibilityNodeInfo eventSource = event.getSource();
++        // Not a message
++        if (event.getEventType() != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED || eventSource == null)
++            return false;
++
++        List<AccessibilityNodeInfo> nodes = eventSource.findAccessibilityNodeInfosByText(WECHAT_NOTIFICATION_TIP);
++        //增加条件判断currentActivityName.contains(WECHAT_LUCKMONEY_GENERAL_ACTIVITY)
++        //避免当订阅号中出现标题为“[微信红包]拜年红包”（其实并非红包）的信息时误判
++        if (!nodes.isEmpty() && currentActivityName.contains(WECHAT_LUCKMONEY_GENERAL_ACTIVITY)) {
++            AccessibilityNodeInfo nodeToClick = nodes.get(0);
++            CharSequence contentDescription = nodeToClick.getContentDescription();
++            if (contentDescription != null && !signature.getContentDescription().equals(contentDescription)) {
++                nodeToClick.performAction(AccessibilityNodeInfo.ACTION_CLICK);
++                signature.setContentDescription(contentDescription.toString());
++                return true;
++            }
++        }
++        return false;
++    }
++
++    private boolean watchNotifications(AccessibilityEvent event) {
++        // Not a notification
++        if (event.getEventType() != AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED)
++            return false;
++
++        // Not a hongbao
++        String tip = event.getText().toString();
++        if (!tip.contains(WECHAT_NOTIFICATION_TIP)) return true;
++
++        Parcelable parcelable = event.getParcelableData();
++        if (parcelable instanceof Notification) {
++            Notification notification = (Notification) parcelable;
++            try {
++                /* 清除signature,避免进入会话后误判 */
++                signature.cleanSignature();
++
++                notification.contentIntent.send();
++            } catch (PendingIntent.CanceledException e) {
++                e.printStackTrace();
++            }
++        }
++        return true;
++    }
++
++    @Override
++    public void onInterrupt() {
++
++    }
++
++    /**
++     * 红包 钮
++     */
++    private AccessibilityNodeInfo findOpenButton(AccessibilityNodeInfo node) {
++        if (node == null)
++            return null;
++
++        //非layout元素
++        if (node.getChildCount() == 0) {
++            if ("android.widget.Button".equals(node.getClassName()))
++                return node;
++            else
++                return null;
++        }
++
++        //layout元素，遍历找button
++        for (int i = 0; i < node.getChildCount(); i++) {
++            AccessibilityNodeInfo button = findOpenButton(node.getChild(i));
++            if (button != null)
++                return button;
++        }
++        return null;
++    }
++
++    /**
++     * 节 信
++     */
++    private void checkNodeInfo(int eventType) {
++        if (this.rootNodeInfo == null) return;
++
++        if (signature.commentString != null) {
++            sendComment();
++            signature.commentString = null;
++        }
++
++        /* 聊天会话窗口，遍历节点匹配“领取红包”和"查看红包" */
++        AccessibilityNodeInfo node1 = (sharedPreferences.getBoolean("pref_watch_self", false)) ?
++                this.getTheLastNode(WECHAT_VIEW_OTHERS_CH, WECHAT_VIEW_SELF_CH) : this.getTheLastNode(WECHAT_VIEW_OTHERS_CH);
++        if (node1 != null && currentActivityName.contains(WECHAT_LUCKMONEY_GENERAL_ACTIVITY)) {
++            String excludeWords = sharedPreferences.getString("pref_watch_exclude_words", "");
++            if (this.signature.generateSignature(node1, excludeWords)) {
++                mLuckyMoneyReceived = true;
++                mReceiveNode = node1;
++                Log.d("sig", this.signature.toString());
++            }
++            return;
++        }
++
++        /* 戳开红包，红包还没抢完，遍历节点匹配“拆红包” */
++        AccessibilityNodeInfo node2 = findOpenButton(this.rootNodeInfo);
++        if (node2 != null && "android.widget.Button".equals(node2.getClassName()) && currentActivityName.contains(WECHAT_LUCKMONEY_RECEIVE_ACTIVITY)) {
++            mUnpackNode = node2;
++            mUnpackCount += 1;
++            return;
++        }
++
++        /* 戳开红包，红包已被抢完，遍历节点匹配“红包详情”和“手慢了” */
++        boolean hasNodes = this.hasOneOfThoseNodes(
++                WECHAT_BETTER_LUCK_CH, WECHAT_DETAILS_CH,
++                WECHAT_BETTER_LUCK_EN, WECHAT_DETAILS_EN, WECHAT_EXPIRES_CH);
++        if (mMutex && eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && hasNodes
++                && (currentActivityName.contains(WECHAT_LUCKMONEY_DETAIL_ACTIVITY)
++                || currentActivityName.contains(WECHAT_LUCKMONEY_RECEIVE_ACTIVITY))) {
++            mMutex = false;
++            mLuckyMoneyPicked = false;
++            mUnpackCount = 0;
++            performGlobalAction(GLOBAL_ACTION_BACK);
++            signature.commentString = generateCommentString();
++        }
++    }
++
++    private void sendComment() {
++        try {
++            AccessibilityNodeInfo outNode =
++                    getRootInActiveWindow().getChild(0).getChild(0);
++            AccessibilityNodeInfo nodeToInput = outNode.getChild(outNode.getChildCount() - 1).getChild(0).getChild(1);
++
++            if ("android.widget.EditText".equals(nodeToInput.getClassName())) {
++                Bundle arguments = new Bundle();
++                arguments.putCharSequence(AccessibilityNodeInfo
++                        .ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, signature.commentString);
++                nodeToInput.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments);
++            }
++        } catch (Exception e) {
++            // Not support
++        }
++    }
++
++
++    private boolean hasOneOfThoseNodes(String... texts) {
++        for (String text : texts) {
++            if (text == null) continue;
++
++            List<AccessibilityNodeInfo> nodes = this.rootNodeInfo.findAccessibilityNodeInfosByText(text);
++
++            if (!nodes.isEmpty()) return true;
++        }
++        return false;
++    }
++
++    private AccessibilityNodeInfo getTheLastNode(String... texts) {
++        int bottom = 0;
++        AccessibilityNodeInfo lastNode = null;
++
++        for (String text : texts) {
++            if (text == null) continue;
++
++            List<AccessibilityNodeInfo> nodes = this.rootNodeInfo.findAccessibilityNodeInfosByText(text);
++
++            if (!nodes.isEmpty()) {
++                AccessibilityNodeInfo node = nodes.get(nodes.size() - 1);
++                Rect bounds = new Rect();
++                node.getBoundsInScreen(bounds);
++                if (bounds.bottom > bottom) {
++                    bottom = bounds.bottom;
++                    lastNode = node;
++                    if (text.equals(WECHAT_VIEW_OTHERS_CH)) {
++                        signature.others = true;
++                    } else {
++                        signature.others = false;
++                    }
++                }
++            }
++        }
++        return lastNode;
++    }
++
++    @Override
++    public void onServiceConnected() {
++        super.onServiceConnected();
++        this.watchFlagsFromPreference();
++    }
++
++    private void watchFlagsFromPreference() {
++        sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
++        sharedPreferences.registerOnSharedPreferenceChangeListener(this);
++
++        this.powerUtil = new PowerUtil(this);
++        Boolean watchOnLockFlag = sharedPreferences.getBoolean("pref_watch_on_lock", false);
++        this.powerUtil.handleWakeLock(watchOnLockFlag);
++    }
++
++    @Override
++    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
++        if (key.equals("pref_watch_on_lock")) {
++            Boolean changedValue = sharedPreferences.getBoolean(key, false);
++            this.powerUtil.handleWakeLock(changedValue);
++        }
++    }
++
++    @Override
++    public void onDestroy() {
++        this.powerUtil.handleWakeLock(false);
++        super.onDestroy();
++    }
++
++    private String generateCommentString() {
++        if (!signature.others) return null;
++
++        Boolean needComment = sharedPreferences.getBoolean("pref_comment_switch", false);
++        if (!needComment) return null;
++
++        String[] wordsArray = sharedPreferences.getString("pref_comment_words", "").split(" +");
++        if (wordsArray.length == 0) return null;
++
++        Boolean atSender = sharedPreferences.getBoolean("pref_comment_at", false);
++        if (atSender) {
++            return "@" + signature.sender + " " + wordsArray[(int) (Math.random() * wordsArray.length)];
++        } else {
++            return wordsArray[(int) (Math.random() * wordsArray.length)];
++        }
++    }
++}
+Index: app/src/main/java/xyz/monkeytong/hongbao/utils/UpdateTask.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/xyz/monkeytong/hongbao/utils/UpdateTask.java	(revision )
++++ app/src/main/java/xyz/monkeytong/hongbao/utils/UpdateTask.java	(revision )
+@@ -0,0 +1,102 @@
++package xyz.monkeytong.hongbao.utils;
++
++import android.content.Context;
++import android.content.Intent;
++import android.content.pm.PackageInfo;
++import android.net.Uri;
++import android.os.AsyncTask;
++import android.widget.Toast;
++import org.apache.http.HttpResponse;
++import org.apache.http.StatusLine;
++import org.apache.http.client.HttpClient;
++import org.apache.http.client.methods.HttpGet;
++import org.apache.http.impl.client.DefaultHttpClient;
++import org.json.JSONObject;
++import xyz.monkeytong.hongbao.R;
++import xyz.monkeytong.hongbao.activities.SettingsActivity;
++import xyz.monkeytong.hongbao.activities.WebViewActivity;
++
++import java.io.ByteArrayOutputStream;
++import java.io.IOException;
++
++/**
++ * Created by Zhongyi on 1/20/16.
++ * Util for app update task.
++ */
++public class UpdateTask extends AsyncTask<String, String, String> {
++    public static int count = 0;
++    private Context context;
++    private boolean isUpdateOnRelease;
++    public static final String updateUrl = "https://api.github.com/repos/geeeeeeeeek/WeChatLuckyMoney/releases/latest";
++
++    public UpdateTask(Context context, boolean needUpdate) {
++        this.context = context;
++        this.isUpdateOnRelease = needUpdate;
++        if (this.isUpdateOnRelease) Toast.makeText(context, "正在检查新版本……", Toast.LENGTH_SHORT).show();
++    }
++
++    @Override
++    protected String doInBackground(String... uri) {
++        HttpClient httpclient = new DefaultHttpClient();
++        HttpResponse response;
++        String responseString = null;
++        try {
++            response = httpclient.execute(new HttpGet(uri[0]));
++            StatusLine statusLine = response.getStatusLine();
++            if (statusLine.getStatusCode() == 200) {
++                ByteArrayOutputStream out = new ByteArrayOutputStream();
++                response.getEntity().writeTo(out);
++                responseString = out.toString();
++                out.close();
++            } else {
++                // Close the connection.
++                response.getEntity().getContent().close();
++                throw new IOException(statusLine.getReasonPhrase());
++            }
++        } catch (Exception e) {
++            return null;
++        }
++        return responseString;
++    }
++
++    @Override
++    protected void onPostExecute(String result) {
++        super.onPostExecute(result);
++        try {
++            count += 1;
++            JSONObject release = new JSONObject(result);
++
++            // Get current version
++            PackageInfo pInfo = context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
++            String version = pInfo.versionName;
++
++            String latestVersion = release.getString("tag_name");
++            boolean isPreRelease = release.getBoolean("prerelease");
++            if (!isPreRelease && version.compareToIgnoreCase(latestVersion) >= 0) {
++                // Your version is ahead of or same as the latest.
++                if (this.isUpdateOnRelease)
++                    Toast.makeText(context, R.string.update_already_latest, Toast.LENGTH_SHORT).show();
++            } else {
++                if (!isUpdateOnRelease) {
++                    Toast.makeText(context, context.getString(R.string.update_new_seg1) + latestVersion + context.getString(R.string.update_new_seg3), Toast.LENGTH_LONG).show();
++                    return;
++                }
++                // Need update.
++                String downloadUrl = release.getJSONArray("assets").getJSONObject(0).getString("browser_download_url");
++
++                // Give up on the fucking DownloadManager. The downloaded apk got renamed and unable to install. Fuck.
++                Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl));
++                browserIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
++                context.startActivity(browserIntent);
++                Toast.makeText(context, context.getString(R.string.update_new_seg1) + latestVersion + context.getString(R.string.update_new_seg2), Toast.LENGTH_LONG).show();
++            }
++        } catch (Exception e) {
++            e.printStackTrace();
++            if (this.isUpdateOnRelease) Toast.makeText(context, R.string.update_error, Toast.LENGTH_LONG).show();
++        }
++    }
++
++    public void update() {
++        super.execute(updateUrl);
++    }
++}
+\ No newline at end of file
+Index: app/src/main/res/values-w820dp/dimens.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/res/values-w820dp/dimens.xml	(revision )
++++ app/src/main/res/values-w820dp/dimens.xml	(revision )
+@@ -0,0 +1,6 @@
++<resources>
++    <!-- Example customization of dimensions originally defined in res/values/dimens.xml
++         (such as screen margins) for screens with more than 820dp of available width. This
++         would include 7" and 10" devices in landscape (~960dp and ~1280dp respectively). -->
++    <dimen name="activity_horizontal_margin">64dp</dimen>
++</resources>
+Index: .idea/encodings.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- .idea/encodings.xml	(revision )
++++ .idea/encodings.xml	(revision )
+@@ -0,0 +1,8 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project version="4">
++  <component name="Encoding">
++    <file url="file://$PROJECT_DIR$/.gitignore" charset="UTF-8" />
++    <file url="file://$PROJECT_DIR$/app" charset="UTF-8" />
++    <file url="file://$PROJECT_DIR$/gradle" charset="UTF-8" />
++  </component>
++</project>
+\ No newline at end of file
+Index: .gitignore
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- .gitignore	(revision )
++++ .gitignore	(revision )
+@@ -0,0 +1,9 @@
++.gradle
++/local.properties
++/.idea/workspace.xml
++/.idea/libraries
++.DS_Store
++/build
++/captures
++/.idea/dictionaries
++/monkeytong.jks
+\ No newline at end of file
+Index: app/src/main/java/xyz/monkeytong/hongbao/utils/HongbaoSignature.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/xyz/monkeytong/hongbao/utils/HongbaoSignature.java	(revision )
++++ app/src/main/java/xyz/monkeytong/hongbao/utils/HongbaoSignature.java	(revision )
+@@ -0,0 +1,97 @@
++package xyz.monkeytong.hongbao.utils;
++
++import android.graphics.Rect;
++import android.view.accessibility.AccessibilityNodeInfo;
++
++/**
++ * Created by Zhongyi on 1/21/16.
++ */
++public class HongbaoSignature {
++    public String sender, content, time, contentDescription = "", commentString;
++    public boolean others;
++
++    public boolean generateSignature(AccessibilityNodeInfo node, String excludeWords) {
++        try {
++            /* The hongbao container node. It should be a LinearLayout. By specifying that, we can avoid text messages. */
++            AccessibilityNodeInfo hongbaoNode = node.getParent();
++            if (!"android.widget.LinearLayout".equals(hongbaoNode.getClassName())) return false;
++
++            /* The text in the hongbao. Should mean something. */
++            String hongbaoContent = hongbaoNode.getChild(0).getText().toString();
++            if (hongbaoContent == null || "查看红包".equals(hongbaoContent)) return false;
++
++            /* Check the user's exclude words list. */
++            String[] excludeWordsArray = excludeWords.split(" +");
++            for (String word : excludeWordsArray) {
++                if (word.length() > 0 && hongbaoContent.contains(word)) return false;
++            }
++
++            /* The container node for a piece of message. It should be inside the screen.
++                Or sometimes it will get opened twice while scrolling. */
++            AccessibilityNodeInfo messageNode = hongbaoNode.getParent();
++
++            Rect bounds = new Rect();
++            messageNode.getBoundsInScreen(bounds);
++            if (bounds.top < 0) return false;
++
++            /* The sender and possible timestamp. Should mean something too. */
++            String[] hongbaoInfo = getSenderContentDescriptionFromNode(messageNode);
++            if (this.getSignature(hongbaoInfo[0], hongbaoContent, hongbaoInfo[1]).equals(this.toString())) return false;
++
++            /* So far we make sure it's a valid new coming hongbao. */
++            this.sender = hongbaoInfo[0];
++            this.time = hongbaoInfo[1];
++            this.content = hongbaoContent;
++            return true;
++        } catch (Exception e) {
++            e.printStackTrace();
++            return false;
++        }
++    }
++
++    @Override
++    public String toString() {
++        return this.getSignature(this.sender, this.content, this.time);
++    }
++
++    private String getSignature(String... strings) {
++        String signature = "";
++        for (String str : strings) {
++            if (str == null) return null;
++            signature += str + "|";
++        }
++
++        return signature.substring(0, signature.length() - 1);
++    }
++
++    public String getContentDescription() {
++        return this.contentDescription;
++    }
++
++    public void setContentDescription(String description) {
++        this.contentDescription = description;
++    }
++
++    private String[] getSenderContentDescriptionFromNode(AccessibilityNodeInfo node) {
++        int count = node.getChildCount();
++        String[] result = {"unknownSender", "unknownTime"};
++        for (int i = 0; i < count; i++) {
++            AccessibilityNodeInfo thisNode = node.getChild(i);
++            if ("android.widget.ImageView".equals(thisNode.getClassName()) && "unknownSender".equals(result[0])) {
++                CharSequence contentDescription = thisNode.getContentDescription();
++                if (contentDescription != null) result[0] = contentDescription.toString().replaceAll("头像$", "");
++            } else if ("android.widget.TextView".equals(thisNode.getClassName()) && "unknownTime".equals(result[1])) {
++                CharSequence thisNodeText = thisNode.getText();
++                if (thisNodeText != null) result[1] = thisNodeText.toString();
++            }
++        }
++        return result;
++    }
++
++    public void cleanSignature() {
++        this.content = "";
++        this.time = "";
++        this.sender = "";
++    }
++
++}
+Index: app/src/main/res/values/dimens.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/res/values/dimens.xml	(revision )
++++ app/src/main/res/values/dimens.xml	(revision )
+@@ -0,0 +1,5 @@
++<resources>
++    <!-- Default screen margins, per the Android Design guidelines. -->
++    <dimen name="activity_horizontal_margin">16dp</dimen>
++    <dimen name="activity_vertical_margin">16dp</dimen>
++</resources>
+Index: app/src/main/java/xyz/monkeytong/hongbao/activities/SettingsActivity.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/xyz/monkeytong/hongbao/activities/SettingsActivity.java	(revision )
++++ app/src/main/java/xyz/monkeytong/hongbao/activities/SettingsActivity.java	(revision )
+@@ -0,0 +1,94 @@
++package xyz.monkeytong.hongbao.activities;
++
++import android.annotation.TargetApi;
++import android.app.Activity;
++import android.app.Fragment;
++import android.app.FragmentManager;
++import android.app.FragmentTransaction;
++import android.content.Intent;
++import android.net.Uri;
++import android.os.Build;
++import android.os.Bundle;
++import android.os.Parcelable;
++import android.preference.Preference;
++import android.preference.PreferenceActivity;
++import android.preference.PreferenceManager;
++import android.provider.Settings;
++import android.support.v4.app.FragmentActivity;
++import android.view.View;
++import android.view.Window;
++import android.view.WindowManager;
++import android.widget.TextView;
++import org.w3c.dom.Text;
++import xyz.monkeytong.hongbao.R;
++import xyz.monkeytong.hongbao.fragments.CommentSettingsFragment;
++import xyz.monkeytong.hongbao.fragments.GeneralSettingsFragment;
++import xyz.monkeytong.hongbao.utils.UpdateTask;
++
++/**
++ * Created by Zhongyi on 1/19/16.
++ * Settings page.
++ */
++public class SettingsActivity extends FragmentActivity {
++    @Override
++    protected void onCreate(Bundle savedInstanceState) {
++        super.onCreate(savedInstanceState);
++        setContentView(R.layout.activity_preferences);
++
++        loadUI();
++        prepareSettings();
++    }
++
++    private void prepareSettings() {
++        String title, fragId;
++        Bundle bundle = getIntent().getExtras();
++        if (bundle != null) {
++            title = bundle.getString("title");
++            fragId = bundle.getString("frag_id");
++        } else {
++            title = "偏好设置";
++            fragId = "GeneralSettingsFragment";
++        }
++
++        TextView textView = (TextView) findViewById(R.id.settings_bar);
++        textView.setText(title);
++
++        FragmentManager fragmentManager = getFragmentManager();
++        FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
++
++        if ("GeneralSettingsFragment".equals(fragId)) {
++            fragmentTransaction.replace(R.id.preferences_fragment, new GeneralSettingsFragment());
++        } else if ("CommentSettingsFragment".equals(fragId)) {
++            fragmentTransaction.replace(R.id.preferences_fragment, new CommentSettingsFragment());
++        }
++        fragmentTransaction.commit();
++    }
++
++    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
++    private void loadUI() {
++        if (android.os.Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) return;
++
++        Window window = this.getWindow();
++
++        window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
++
++        window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
++
++        window.setStatusBarColor(0xffd84e43);
++    }
++
++    @Override
++    protected void onResume() {
++        super.onResume();
++    }
++
++    public void performBack(View view) {
++        super.onBackPressed();
++    }
++
++    public void enterAccessibilityPage(View view) {
++        Intent mAccessibleIntent =
++                new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
++        startActivity(mAccessibleIntent);
++    }
++}
+Index: app/proguard-rules.pro
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/proguard-rules.pro	(revision )
++++ app/proguard-rules.pro	(revision )
+@@ -0,0 +1,18 @@
++# Add project specific ProGuard rules here.
++# By default, the flags in this file are appended to flags specified
++# in /home/nian/Android/Sdk/tools/proguard/proguard-android.txt
++# You can edit the include path and order by changing the proguardFiles
++# directive in build.gradle.
++#
++# For more details, see
++#   http://developer.android.com/guide/developing/tools/proguard.html
++
++# Add any project specific keep options here:
++
++# If your project uses WebView with JS, uncomment the following
++# and specify the fully qualified class name to the JavaScript interface
++# class:
++#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
++#   public *;
++#}
++-keep public class com.tencent.bugly.**{*;}
+Index: app/src/main/AndroidManifest.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/AndroidManifest.xml	(revision )
++++ app/src/main/AndroidManifest.xml	(revision )
+@@ -0,0 +1,45 @@
++<?xml version="1.0" encoding="utf-8"?>
++<manifest xmlns:android="http://schemas.android.com/apk/res/android"
++          package="xyz.monkeytong.hongbao">
++    <uses-permission android:name="android.permission.DISABLE_KEYGUARD"/>
++    <uses-permission android:name="android.permission.INTERNET"/>
++    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
++    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
++    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
++    <uses-permission android:name="android.permission.WAKE_LOCK"/>
++    <uses-permission android:name="android.permission.READ_LOGS"/>
++    <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
++    <application
++            android:allowBackup="true"
++            android:icon="@mipmap/ic_launcher"
++            android:label="@string/app_name">
++        <activity
++                android:name=".activities.MainActivity"
++                android:label="@string/app_name"
++                android:theme="@style/Base.Theme.AppCompat.Light"
++                android:launchMode="singleTask">
++            <intent-filter>
++                <action android:name="android.intent.action.MAIN"/>
++                <category android:name="android.intent.category.LAUNCHER"/>
++            </intent-filter>
++        </activity>
++        <activity android:name=".activities.SettingsActivity"
++                  android:theme="@style/Base.Theme.AppCompat.Light"
++                  android:launchMode="standard">
++        </activity>
++        <activity android:name=".activities.WebViewActivity"
++                  android:theme="@style/Base.Theme.AppCompat.Light"
++                  android:launchMode="standard">
++        </activity>
++        <service
++                android:name=".services.HongbaoService"
++                android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
++            <intent-filter>
++                <action android:name="android.accessibilityservice.AccessibilityService"/>
++            </intent-filter>
++            <meta-data android:name="android.accessibilityservice"
++                       android:resource="@xml/accessible_service_config"/>
++        </service>
++    </application>
++
++</manifest>
+Index: app/src/main/res/layout/preference_seekbar.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/res/layout/preference_seekbar.xml	(revision )
++++ app/src/main/res/layout/preference_seekbar.xml	(revision )
+@@ -0,0 +1,17 @@
++<?xml version="1.0" encoding="utf-8"?>
++<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
++              android:orientation="vertical"
++              android:layout_width="match_parent"
++              android:layout_height="match_parent">
++
++    <SeekBar
++            android:layout_width="match_parent"
++            android:layout_height="wrap_content"
++            android:id="@+id/delay_seekBar" android:layout_margin="20dp" android:max="10"/>
++    <TextView
++            android:layout_width="wrap_content"
++            android:layout_height="wrap_content"
++            android:text="延迟0秒拆开红包"
++            android:id="@+id/pref_seekbar_textview" android:textColor="#666666" android:textSize="16sp"
++            android:layout_marginLeft="32dp" android:layout_marginRight="32dp" android:layout_marginBottom="20dp"/>
++</LinearLayout>
+\ No newline at end of file
+Index: gradle/wrapper/gradle-wrapper.properties
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>GBK
+===================================================================
+--- gradle/wrapper/gradle-wrapper.properties	(revision )
++++ gradle/wrapper/gradle-wrapper.properties	(revision )
+@@ -0,0 +1,6 @@
++#Wed Apr 10 15:27:10 PDT 2013
++distributionBase=GRADLE_USER_HOME
++distributionPath=wrapper/dists
++zipStoreBase=GRADLE_USER_HOME
++zipStorePath=wrapper/dists
++distributionUrl=https\://services.gradle.org/distributions/gradle-2.2.1-all.zip
+Index: app/src/main/java/xyz/monkeytong/hongbao/utils/PowerUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/xyz/monkeytong/hongbao/utils/PowerUtil.java	(revision )
++++ app/src/main/java/xyz/monkeytong/hongbao/utils/PowerUtil.java	(revision )
+@@ -0,0 +1,41 @@
++package xyz.monkeytong.hongbao.utils;
++
++import android.app.KeyguardManager;
++import android.content.Context;
++import android.os.PowerManager;
++
++/**
++ * Created by Zhongyi on 1/29/16.
++ */
++public class PowerUtil {
++    private PowerManager.WakeLock wakeLock;
++    private KeyguardManager.KeyguardLock keyguardLock;
++
++    public PowerUtil(Context context) {
++        PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
++        wakeLock = pm.newWakeLock(PowerManager.SCREEN_DIM_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP,
++                "HongbaoWakelock");
++        KeyguardManager km = (KeyguardManager) context.getSystemService(Context.KEYGUARD_SERVICE);
++        keyguardLock = km.newKeyguardLock("HongbaoKeyguardLock");
++    }
++
++    private void acquire() {
++        wakeLock.acquire(1800000);
++        keyguardLock.disableKeyguard();
++    }
++
++    private void release() {
++        if (wakeLock.isHeld()) {
++            wakeLock.release();
++            keyguardLock.reenableKeyguard();
++        }
++    }
++
++    public void handleWakeLock(boolean isWake) {
++        if (isWake) {
++            this.acquire();
++        } else {
++            this.release();
++        }
++    }
++}
+Index: app/src/main/res/layout/activity_webview.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/res/layout/activity_webview.xml	(revision )
++++ app/src/main/res/layout/activity_webview.xml	(revision )
+@@ -0,0 +1,45 @@
++<?xml version="1.0" encoding="utf-8"?>
++
++<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
++              xmlns:tools="http://schemas.android.com/tools"
++              android:orientation="vertical"
++              android:layout_width="match_parent"
++              android:layout_height="match_parent" tools:context=".activities.WebViewActivity">
++
++    <RelativeLayout android:layout_width="match_parent"
++                    android:layout_height="wrap_content"
++                    android:background="#d84e43"
++                    tools:context=".WebViewActivity"
++    >
++        <TextView android:layout_width="wrap_content" android:layout_height="60dp"
++                  android:id="@+id/webview_bar"
++                  android:text="@string/app_name" android:textColor="#fde1b5"
++                  android:gravity="left|center_vertical|center_horizontal"
++                  android:elegantTextHeight="false" android:textSize="20sp"
++                  android:layout_toRightOf="@+id/webview_back"
++        />
++        <ImageView
++                android:layout_width="40dp"
++                android:layout_height="match_parent"
++                android:id="@+id/webview_back"
++                android:layout_marginLeft="10dp"
++                android:layout_marginRight="8dp"
++                android:clickable="true" android:onClick="performBack"
++                android:layout_alignBottom="@+id/webview_bar"
++                android:src="@mipmap/ic_back"/>
++        <ImageView
++                android:layout_width="40dp"
++                android:layout_height="match_parent"
++                android:id="@+id/webview_outlink"
++                android:layout_marginRight="10dp"
++                android:clickable="true" android:onClick="openLink"
++                android:layout_alignBottom="@+id/webview_bar"
++                android:src="@mipmap/ic_open_in_browser" android:layout_alignParentRight="true"
++                android:layout_marginLeft="8dp" android:padding="6dp"/>
++    </RelativeLayout>
++    <WebView
++            android:layout_width="match_parent"
++            android:layout_height="match_parent"
++            android:id="@+id/webView" android:layout_gravity="center_horizontal" android:foreground="#d84e43"/>
++
++</LinearLayout>
+Index: app/src/main/res/layout/activity_main.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/res/layout/activity_main.xml	(revision )
++++ app/src/main/res/layout/activity_main.xml	(revision )
+@@ -0,0 +1,71 @@
++<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
++                xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent"
++                android:layout_height="match_parent" tools:context=".MainActivity"
++                android:background="#faf6f1">
++    <ImageView
++            android:layout_width="fill_parent"
++            android:layout_height="0dp"
++            android:id="@+id/main_action_bar_placeholder" android:layout_alignParentTop="true"
++            android:background="#d65645" android:layout_alignTop="@+id/textView"/>
++       <TextView
++            android:layout_width="fill_parent"
++            android:layout_height="wrap_content"
++            android:textAppearance="?android:attr/textAppearanceLarge"
++            android:id="@+id/textView" android:background="@mipmap/bg_action_bar" android:text="微信红包" android:textColor="#fee1b4"
++            android:gravity="center_vertical|center_horizontal"
++            android:textSize="26dp" android:autoText="false"/>
++
++    <ImageView
++            android:layout_width="44dp"
++            android:layout_height="44dp"
++            android:id="@+id/imageView2"
++            android:src="@mipmap/ic_settings"
++            android:padding="10dp"
++            android:onClick="openSettings"
++            android:layout_alignRight="@+id/textView" android:layout_below="@+id/main_action_bar_placeholder"
++            android:layout_marginRight="6dp" android:layout_marginTop="6dp"/>
++    <ImageView
++            android:layout_width="wrap_content"
++            android:layout_height="wrap_content"
++            android:id="@+id/imageView" android:src="@mipmap/open"
++            android:scaleType="centerInside"
++            android:layout_above="@+id/textView3"
++            android:layout_centerHorizontal="true" android:onClick="openGithub" android:clickable="true"
++    />
++    <TextView
++            android:layout_width="fill_parent"
++            android:layout_height="wrap_content"
++            android:textAppearance="@android:style/TextAppearance.DeviceDefault.Medium"
++            android:text="@string/app_version"
++            android:id="@+id/textView3"
++            android:gravity="center" android:onClick="openGithub"
++            android:clickable="true" android:layout_centerInParent="true" android:textColor="#c5a45e"
++            android:paddingTop="6dp" android:paddingBottom="1dp"/>
++    <TextView
++            android:layout_width="wrap_content"
++            android:layout_height="wrap_content"
++            android:textAppearance="?android:attr/textAppearanceSmall"
++            android:text="查看最新版本功能介绍"
++            android:id="@+id/textView2" android:layout_below="@+id/textView3"
++            android:layout_centerHorizontal="true" android:clickable="true" android:onClick="openGithubReleaseNotes"
++            android:layout_marginTop="3dp" android:textColor="#999999"/>
++    <TextView
++            android:layout_width="fill_parent"
++            android:layout_height="wrap_content"
++            android:textAppearance="?android:attr/textAppearanceSmall"
++            android:text="https://github.com/geeeeeeeeek/WeChatLuckyMoney"
++            android:id="@+id/github" android:gravity="center_horizontal"
++            android:layout_centerHorizontal="true"
++            android:layout_alignParentBottom="true" android:layout_marginBottom="20dp" android:layout_marginTop="20dp"
++            android:textColor="#5272ae" android:clickable="true" android:onClick="openGithub"/>
++    <Button
++            android:id="@+id/button_accessible"
++            android:text="@string/service_name"
++            android:layout_width="match_parent"
++            android:layout_height="60dp"
++            android:onClick="onButtonClicked" android:layout_alignParentBottom="false"
++            android:background="#24e2b379" android:textColor="#c5a45e"
++            style="?android:attr/borderlessButtonStyle"
++            android:layout_marginRight="16dp" android:layout_marginLeft="16dp" android:layout_above="@+id/github"
++            android:textSize="20dp"/>
++</RelativeLayout>
+Index: app/src/main/java/xyz/monkeytong/hongbao/utils/ConnectivityUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/xyz/monkeytong/hongbao/utils/ConnectivityUtil.java	(revision )
++++ app/src/main/java/xyz/monkeytong/hongbao/utils/ConnectivityUtil.java	(revision )
+@@ -0,0 +1,19 @@
++package xyz.monkeytong.hongbao.utils;
++
++import android.content.Context;
++import android.net.ConnectivityManager;
++import android.net.NetworkInfo;
++
++/**
++ * Created by Zhongyi on 1/29/16.
++ */
++public class ConnectivityUtil {
++    public static boolean isWifi(Context context) {
++        ConnectivityManager cm =
++                (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
++
++        NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
++        return activeNetwork != null && activeNetwork.isConnectedOrConnecting()
++                && activeNetwork.getType() == ConnectivityManager.TYPE_WIFI;
++    }
++}
+Index: app/src/main/java/xyz/monkeytong/hongbao/activities/MainActivity.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/xyz/monkeytong/hongbao/activities/MainActivity.java	(revision )
++++ app/src/main/java/xyz/monkeytong/hongbao/activities/MainActivity.java	(revision )
+@@ -0,0 +1,156 @@
++package xyz.monkeytong.hongbao.activities;
++
++import android.accessibilityservice.AccessibilityServiceInfo;
++import android.annotation.TargetApi;
++import android.app.Activity;
++import android.content.Context;
++import android.content.Intent;
++import android.os.Build;
++import android.os.Bundle;
++import android.os.Parcelable;
++import android.preference.PreferenceManager;
++import android.provider.Settings;
++import android.view.View;
++import android.view.Window;
++import android.view.WindowManager;
++import android.view.accessibility.AccessibilityManager;
++import android.widget.Button;
++
++import java.util.List;
++
++import android.widget.Toast;
++import xyz.monkeytong.hongbao.R;
++import xyz.monkeytong.hongbao.fragments.GeneralSettingsFragment;
++import xyz.monkeytong.hongbao.utils.ConnectivityUtil;
++import xyz.monkeytong.hongbao.utils.UpdateTask;
++
++import com.tencent.bugly.crashreport.CrashReport;
++
++
++public class MainActivity extends Activity implements AccessibilityManager.AccessibilityStateChangeListener {
++
++    //开关切换按钮
++    private Button switchPlugin;
++    //AccessibilityService 管理
++    private AccessibilityManager accessibilityManager;
++
++    @Override
++    protected void onCreate(Bundle savedInstanceState) {
++        super.onCreate(savedInstanceState);
++        CrashReport.initCrashReport(getApplicationContext(), "900019352", false);
++        setContentView(R.layout.activity_main);
++        switchPlugin = (Button) findViewById(R.id.button_accessible);
++
++        handleMaterialStatusBar();
++
++        explicitlyLoadPreferences();
++
++        //监听AccessibilityService 变化
++        accessibilityManager = (AccessibilityManager) getSystemService(Context.ACCESSIBILITY_SERVICE);
++        accessibilityManager.addAccessibilityStateChangeListener(this);
++        updateServiceStatus();
++    }
++
++    private void explicitlyLoadPreferences() {
++        PreferenceManager.setDefaultValues(this, R.xml.general_preferences, false);
++    }
++
++    /**
++     * 适配MIUI沉浸状态栏
++     */
++    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
++    private void handleMaterialStatusBar() {
++        // Not supported in APK level lower than 21
++        if (android.os.Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) return;
++
++        Window window = this.getWindow();
++
++        window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
++
++        window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
++
++        window.setStatusBarColor(0xffd84e43);
++
++    }
++
++    @Override
++    protected void onResume() {
++        super.onResume();
++
++        // Check for update when WIFI is connected or on first time.
++        if (ConnectivityUtil.isWifi(this) || UpdateTask.count == 0)
++            new UpdateTask(this, false).update();
++    }
++
++    @Override
++    protected void onDestroy() {
++        //移除监听服务
++        accessibilityManager.removeAccessibilityStateChangeListener(this);
++        super.onDestroy();
++    }
++
++    public void onButtonClicked(View view) {
++        try {
++            Intent accessibleIntent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
++            startActivity(accessibleIntent);
++        } catch (Exception e) {
++            Toast.makeText(this, "遇到一些问题,请手动打开系统设置>辅助服务>微信红包(??ω`?)", Toast.LENGTH_LONG).show();
++            e.printStackTrace();
++        }
++
++    }
++
++    public void openGithub(View view) {
++        Intent webViewIntent = new Intent(this, WebViewActivity.class);
++        webViewIntent.putExtra("title", "Github项目主页");
++        webViewIntent.putExtra("url", "https://github.com/geeeeeeeeek/WeChatLuckyMoney");
++        startActivity(webViewIntent);
++    }
++
++    public void openGithubReleaseNotes(View view) {
++        Intent webViewIntent = new Intent(this, WebViewActivity.class);
++        webViewIntent.putExtra("title", "发布日志");
++        webViewIntent.putExtra("url", "https://github.com/geeeeeeeeek/WeChatLuckyMoney/issues?q=is%3Aissue+is%3Aopen+label%3A%22release+notes%22");
++        startActivity(webViewIntent);
++    }
++
++    public void openSettings(View view) {
++        Intent settingsIntent = new Intent(this, SettingsActivity.class);
++        settingsIntent.putExtra("title", "偏好设置");
++        settingsIntent.putExtra("frag_id", "GeneralSettingsFragment");
++        startActivity(settingsIntent);
++    }
++
++
++    @Override
++    public void onAccessibilityStateChanged(boolean enabled) {
++        updateServiceStatus();
++    }
++
++    /**
++     * 更新当前 HongbaoService 显示状态
++     */
++    private void updateServiceStatus() {
++        if (isServiceEnabled()) {
++            switchPlugin.setText(R.string.service_off);
++        } else {
++            switchPlugin.setText(R.string.service_on);
++        }
++    }
++
++    /**
++     * 获取 HongbaoService 是否启用状态
++     *
++     * @return
++     */
++    private boolean isServiceEnabled() {
++        List<AccessibilityServiceInfo> accessibilityServices =
++                accessibilityManager.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_GENERIC);
++        for (AccessibilityServiceInfo info : accessibilityServices) {
++            if (info.getId().equals(getPackageName() + "/.services.HongbaoService")) {
++                return true;
++            }
++        }
++        return false;
++    }
++}
+Index: app/src/main/java/xyz/monkeytong/hongbao/activities/WebViewActivity.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/xyz/monkeytong/hongbao/activities/WebViewActivity.java	(revision )
++++ app/src/main/java/xyz/monkeytong/hongbao/activities/WebViewActivity.java	(revision )
+@@ -0,0 +1,115 @@
++package xyz.monkeytong.hongbao.activities;
++
++import android.annotation.TargetApi;
++import android.app.Activity;
++import android.content.Intent;
++import android.net.Uri;
++import android.os.Build;
++import android.os.Bundle;
++import android.preference.Preference;
++import android.preference.PreferenceActivity;
++import android.preference.PreferenceManager;
++import android.provider.Settings;
++import android.view.KeyEvent;
++import android.view.View;
++import android.view.Window;
++import android.view.WindowManager;
++import android.webkit.CookieSyncManager;
++import android.webkit.WebSettings;
++import android.webkit.WebView;
++import android.webkit.WebViewClient;
++import android.widget.EditText;
++import android.widget.TextView;
++import xyz.monkeytong.hongbao.R;
++import xyz.monkeytong.hongbao.utils.UpdateTask;
++
++/**
++ * Created by Zhongyi on 1/19/16.
++ * Settings page.
++ */
++public class WebViewActivity extends Activity {
++    private WebView webView;
++    private String webViewUrl, webViewTitle;
++
++    @Override
++    protected void onCreate(Bundle savedInstanceState) {
++        super.onCreate(savedInstanceState);
++
++        loadUI();
++
++        Bundle bundle = getIntent().getExtras();
++        if (bundle != null && !bundle.isEmpty()) {
++            webViewTitle = bundle.getString("title");
++            webViewUrl = bundle.getString("url");
++
++            TextView webViewBar = (TextView) findViewById(R.id.webview_bar);
++            webViewBar.setText(webViewTitle);
++
++            webView = (WebView) findViewById(R.id.webView);
++            webView.getSettings().setBuiltInZoomControls(false);
++            webView.getSettings().setJavaScriptEnabled(true);
++            webView.getSettings().setDomStorageEnabled(true);
++            webView.getSettings().setCacheMode(WebSettings.LOAD_DEFAULT);
++            webView.setWebViewClient(new WebViewClient() {
++                @Override
++                public boolean shouldOverrideUrlLoading(WebView view, String url) {
++                    view.loadUrl(url);
++                    return false;
++                }
++
++                @Override
++                public void onPageFinished(WebView view, String url) {
++                    CookieSyncManager.getInstance().sync();
++                }
++            });
++            webView.loadUrl(webViewUrl);
++        }
++    }
++
++    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
++    private void loadUI() {
++        setContentView(R.layout.activity_webview);
++
++        if (android.os.Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) return;
++
++        Window window = this.getWindow();
++
++        window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
++
++        window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
++
++        window.setStatusBarColor(0xffd84e43);
++    }
++
++    @Override
++    protected void onResume() {
++        super.onResume();
++    }
++
++    public void performBack(View view) {
++        super.onBackPressed();
++    }
++
++    @Override
++    public boolean onKeyDown(int keyCode, KeyEvent event) {
++        if (event.getAction() == KeyEvent.ACTION_DOWN) {
++            switch (keyCode) {
++                case KeyEvent.KEYCODE_BACK:
++                    if (webView.canGoBack()) {
++                        webView.goBack();
++                    } else {
++                        finish();
++                    }
++                    return true;
++            }
++
++        }
++        return super.onKeyDown(keyCode, event);
++    }
++
++    public void openLink(View view) {
++        Intent intent = new Intent(Intent.ACTION_VIEW,
++                Uri.parse(this.webViewUrl));
++        startActivity(intent);
++    }
++}
+Index: app/src/main/res/layout/preference_checkbox.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/res/layout/preference_checkbox.xml	(revision )
++++ app/src/main/res/layout/preference_checkbox.xml	(revision )
+@@ -0,0 +1,47 @@
++<?xml version="1.0" encoding="utf-8"?>
++<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
++              android:layout_width="match_parent"
++              android:layout_height="wrap_content"
++              android:gravity="center_vertical"
++              android:paddingLeft="16dp"
++              android:paddingRight="?android:attr/scrollbarSize">
++
++
++
++    <RelativeLayout
++            android:layout_width="wrap_content"
++            android:layout_height="wrap_content"
++            android:layout_marginRight="6dp"
++            android:layout_marginTop="12dp"
++            android:layout_marginBottom="12dp"
++            android:layout_weight="1">
++
++        <TextView android:id="@+android:id/title"
++                  android:layout_width="wrap_content"
++                  android:layout_height="wrap_content"
++                  android:singleLine="true"
++                  android:ellipsize="marquee"
++                  android:textColor="#ff333333"
++                  android:textSize="18sp"
++                  android:fadingEdge="horizontal" />
++
++        <TextView android:id="@+android:id/summary"
++                  android:layout_width="wrap_content"
++                  android:layout_height="wrap_content"
++                  android:layout_below="@android:id/title"
++                  android:layout_alignLeft="@android:id/title"
++                  android:textColor="?android:attr/textColorSecondary"
++                  android:textSize="16sp"
++                  android:maxLines="4" />
++
++    </RelativeLayout>
++
++    <!-- Preference should place its actual preference widget here. -->
++    <LinearLayout android:id="@+android:id/widget_frame"
++                  android:layout_width="wrap_content"
++                  android:layout_height="match_parent"
++                  android:layout_marginRight="6dp"
++                  android:gravity="center"
++                  android:orientation="vertical" />
++
++</LinearLayout>
+\ No newline at end of file
+Index: app/app.iml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/app.iml	(revision )
++++ app/app.iml	(revision )
+@@ -0,0 +1,87 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<module external.linked.project.id=":app" external.linked.project.path="$MODULE_DIR$" external.root.project.path="$MODULE_DIR$/.." external.system.id="GRADLE" external.system.module.group="WeChatLuckyMoney" external.system.module.version="unspecified" type="JAVA_MODULE" version="4">
++  <component name="FacetManager">
++    <facet type="android-gradle" name="Android-Gradle">
++      <configuration>
++        <option name="GRADLE_PROJECT_PATH" value=":app" />
++      </configuration>
++    </facet>
++    <facet type="android" name="Android">
++      <configuration>
++        <option name="SELECTED_BUILD_VARIANT" value="debug" />
++        <option name="SELECTED_TEST_ARTIFACT" value="_android_test_" />
++        <option name="ASSEMBLE_TASK_NAME" value="assembleDebug" />
++        <option name="COMPILE_JAVA_TASK_NAME" value="compileDebugSources" />
++        <option name="ASSEMBLE_TEST_TASK_NAME" value="assembleDebugAndroidTest" />
++        <option name="COMPILE_JAVA_TEST_TASK_NAME" value="compileDebugAndroidTestSources" />
++        <afterSyncTasks>
++          <task>generateDebugAndroidTestSources</task>
++          <task>generateDebugSources</task>
++        </afterSyncTasks>
++        <option name="ALLOW_USER_CONFIGURATION" value="false" />
++        <option name="MANIFEST_FILE_RELATIVE_PATH" value="/src/main/AndroidManifest.xml" />
++        <option name="RES_FOLDER_RELATIVE_PATH" value="/src/main/res" />
++        <option name="RES_FOLDERS_RELATIVE_PATH" value="file://$MODULE_DIR$/src/main/res" />
++        <option name="ASSETS_FOLDER_RELATIVE_PATH" value="/src/main/assets" />
++      </configuration>
++    </facet>
++  </component>
++  <component name="NewModuleRootManager" LANGUAGE_LEVEL="JDK_1_7" inherit-compiler-output="false">
++    <output url="file://$MODULE_DIR$/build/intermediates/classes/debug" />
++    <output-test url="file://$MODULE_DIR$/build/intermediates/classes/androidTest/debug" />
++    <exclude-output />
++    <content url="file://$MODULE_DIR$">
++      <sourceFolder url="file://$MODULE_DIR$/build/generated/source/r/debug" isTestSource="false" generated="true" />
++      <sourceFolder url="file://$MODULE_DIR$/build/generated/source/aidl/debug" isTestSource="false" generated="true" />
++      <sourceFolder url="file://$MODULE_DIR$/build/generated/source/buildConfig/debug" isTestSource="false" generated="true" />
++      <sourceFolder url="file://$MODULE_DIR$/build/generated/source/rs/debug" isTestSource="false" generated="true" />
++      <sourceFolder url="file://$MODULE_DIR$/build/generated/res/rs/debug" type="java-resource" />
++      <sourceFolder url="file://$MODULE_DIR$/build/generated/res/generated/debug" type="java-resource" />
++      <sourceFolder url="file://$MODULE_DIR$/build/generated/source/r/androidTest/debug" isTestSource="true" generated="true" />
++      <sourceFolder url="file://$MODULE_DIR$/build/generated/source/aidl/androidTest/debug" isTestSource="true" generated="true" />
++      <sourceFolder url="file://$MODULE_DIR$/build/generated/source/buildConfig/androidTest/debug" isTestSource="true" generated="true" />
++      <sourceFolder url="file://$MODULE_DIR$/build/generated/source/rs/androidTest/debug" isTestSource="true" generated="true" />
++      <sourceFolder url="file://$MODULE_DIR$/build/generated/res/rs/androidTest/debug" type="java-test-resource" />
++      <sourceFolder url="file://$MODULE_DIR$/build/generated/res/generated/androidTest/debug" type="java-test-resource" />
++      <sourceFolder url="file://$MODULE_DIR$/src/debug/res" type="java-resource" />
++      <sourceFolder url="file://$MODULE_DIR$/src/debug/resources" type="java-resource" />
++      <sourceFolder url="file://$MODULE_DIR$/src/debug/assets" type="java-resource" />
++      <sourceFolder url="file://$MODULE_DIR$/src/debug/aidl" isTestSource="false" />
++      <sourceFolder url="file://$MODULE_DIR$/src/debug/java" isTestSource="false" />
++      <sourceFolder url="file://$MODULE_DIR$/src/debug/jni" isTestSource="false" />
++      <sourceFolder url="file://$MODULE_DIR$/src/debug/rs" isTestSource="false" />
++      <sourceFolder url="file://$MODULE_DIR$/src/main/res" type="java-resource" />
++      <sourceFolder url="file://$MODULE_DIR$/src/main/resources" type="java-resource" />
++      <sourceFolder url="file://$MODULE_DIR$/src/main/assets" type="java-resource" />
++      <sourceFolder url="file://$MODULE_DIR$/src/main/aidl" isTestSource="false" />
++      <sourceFolder url="file://$MODULE_DIR$/src/main/java" isTestSource="false" />
++      <sourceFolder url="file://$MODULE_DIR$/src/main/jni" isTestSource="false" />
++      <sourceFolder url="file://$MODULE_DIR$/src/main/rs" isTestSource="false" />
++      <sourceFolder url="file://$MODULE_DIR$/src/androidTest/res" type="java-test-resource" />
++      <sourceFolder url="file://$MODULE_DIR$/src/androidTest/resources" type="java-test-resource" />
++      <sourceFolder url="file://$MODULE_DIR$/src/androidTest/assets" type="java-test-resource" />
++      <sourceFolder url="file://$MODULE_DIR$/src/androidTest/aidl" isTestSource="true" />
++      <sourceFolder url="file://$MODULE_DIR$/src/androidTest/java" isTestSource="true" />
++      <sourceFolder url="file://$MODULE_DIR$/src/androidTest/jni" isTestSource="true" />
++      <sourceFolder url="file://$MODULE_DIR$/src/androidTest/rs" isTestSource="true" />
++      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/assets" />
++      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.android.support/appcompat-v7/22.1.1/jars" />
++      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.android.support/support-v4/22.1.1/jars" />
++      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/exploded-aar/com.tencent.bugly/crashreport/1.2.9/jars" />
++      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/incremental" />
++      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/manifests" />
++      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/res" />
++      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/resources" />
++      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/rs" />
++      <excludeFolder url="file://$MODULE_DIR$/build/intermediates/symbols" />
++      <excludeFolder url="file://$MODULE_DIR$/build/outputs" />
++      <excludeFolder url="file://$MODULE_DIR$/build/tmp" />
++    </content>
++    <orderEntry type="jdk" jdkName="Android API 21 Platform" jdkType="Android SDK" />
++    <orderEntry type="sourceFolder" forTests="false" />
++    <orderEntry type="library" exported="" name="appcompat-v7-22.1.1" level="project" />
++    <orderEntry type="library" exported="" name="crashreport-1.2.9" level="project" />
++    <orderEntry type="library" exported="" name="support-v4-22.1.1" level="project" />
++    <orderEntry type="library" exported="" name="support-annotations-22.1.1" level="project" />
++  </component>
++</module>
+\ No newline at end of file
+Index: LuckMoney.iml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- LuckMoney.iml	(revision )
++++ LuckMoney.iml	(revision )
+@@ -0,0 +1,26 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<module external.linked.project.id="LuckMoney" external.linked.project.path="$MODULE_DIR$" external.root.project.path="$MODULE_DIR$" external.system.id="GRADLE" external.system.module.group="" external.system.module.version="unspecified" type="JAVA_MODULE" version="4">
++  <component name="FacetManager">
++    <facet type="android-gradle" name="Android-Gradle">
++      <configuration>
++        <option name="GRADLE_PROJECT_PATH" value=":" />
++      </configuration>
++    </facet>
++    <facet type="android" name="Android">
++      <configuration>
++        <option name="ALLOW_USER_CONFIGURATION" value="false" />
++      </configuration>
++    </facet>
++  </component>
++  <component name="NewModuleRootManager" inherit-compiler-output="false">
++    <output url="file://$MODULE_DIR$/build" />
++    <output-test url="file://$MODULE_DIR$/build" />
++    <exclude-output />
++    <content url="file://$MODULE_DIR$">
++      <excludeFolder url="file://$MODULE_DIR$/.gradle" />
++      <excludeFolder url="file://$MODULE_DIR$/build" />
++    </content>
++    <orderEntry type="inheritedJdk" />
++    <orderEntry type="sourceFolder" forTests="false" />
++  </component>
++</module>
+\ No newline at end of file
+Index: app/src/main/res/values/strings.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/res/values/strings.xml	(revision )
++++ app/src/main/res/values/strings.xml	(revision )
+@@ -0,0 +1,18 @@
++<resources>
++    <string name="app_name">微信红包</string>
++    <string name="app_version">稳定版 v2.3.1</string>
++    <string name="app_description">∠( ? 」∠)_使用指南∠( ? 」∠)_\n\n ○ 狠戳插件开关\n ○ 回到微信聊天\n ○ 坐等红包进账\n\n 遇到问题, 欢迎通过Github issue反馈~\n https://github.com/geeeeeeeeek/WeChatLuckyMoney</string>
++    <string name="service_status">当前辅助服务状态:</string>
++    <string name="service_name">设置抢红包辅助服务</string>
++    <string name="preference">偏好设置</string>
++    <string name="update_error">遇到一些问题,请前往Github手动更新喵(??ω`?)</string>
++    <string name="update_new_seg1">发现新版本(</string>
++    <string name="update_new_seg2">),正在为您准备下载( /) V (\\ )</string>
++    <string name="update_new_seg3">),请进入设置完成更新(??ω`?)</string>
++    <string name="update_already_latest">已经是最新版本了(??▽`?)</string>
++    <string name="service_off">关闭插件</string>
++    <string name="service_on">开启插件</string>
++    <string name="pref_watch_exclude_words_summary">不拆开包含这些文字的红包(空格间隔)</string>
++    <string name="pref_comment_words_summary">随机选择下列感谢语(空格间隔)</string>
++    <string name="url_github_issues">https://github.com/geeeeeeeeek/WeChatLuckyMoney/issues</string>
++</resources>
+\ No newline at end of file
+Index: app/src/main/res/xml/accessible_service_config.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/res/xml/accessible_service_config.xml	(revision )
++++ app/src/main/res/xml/accessible_service_config.xml	(revision )
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="utf-8"?>
++<accessibility-service
++    xmlns:android="http://schemas.android.com/apk/res/android"
++    android:description="@string/app_description"
++    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeNotificationStateChanged"
++    android:accessibilityFeedbackType="feedbackAllMask"
++    android:packageNames="com.tencent.mm"
++    android:notificationTimeout="10"
++    android:settingsActivity="xyz.monkeytong.hongbao.activities.SettingsActivity"
++    android:accessibilityFlags="flagDefault"
++    android:canRetrieveWindowContent="true"/>
+\ No newline at end of file
+Index: app/.gitignore
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/.gitignore	(revision )
++++ app/.gitignore	(revision )
+@@ -0,0 +1,2 @@
++/build
++/gradle.properties
+\ No newline at end of file
+Index: app/src/main/java/xyz/monkeytong/hongbao/utils/HongbaoLogger.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/xyz/monkeytong/hongbao/utils/HongbaoLogger.java	(revision )
++++ app/src/main/java/xyz/monkeytong/hongbao/utils/HongbaoLogger.java	(revision )
+@@ -0,0 +1,38 @@
++package xyz.monkeytong.hongbao.utils;
++
++import android.content.Context;
++import android.database.sqlite.SQLiteDatabase;
++import android.database.sqlite.SQLiteOpenHelper;
++
++/**
++ * Created by Zhongyi on 1/22/16.
++ */
++public class HongbaoLogger {
++    private Context context;
++    private SQLiteDatabase database;
++
++    private static final int DATABASE_VERSION = 1;
++    private static final String DATABASE_NAME = "WeChatLuckyMoney.db";
++    private static final String createDatabaseSQL = "CREATE TABLE IF NOT EXISTS HongbaoLog (id INTEGER PRIMARY KEY AUTOINCREMENT, sender TEXT, content TEXT, time TEXT, amount TEXT);";
++
++    public HongbaoLogger(final Context context) {
++        this.context = context;
++        this.initSchemaAndDatabase();
++    }
++
++    private void initSchemaAndDatabase() {
++        this.database = context.openOrCreateDatabase("WeChatLuckyMoney", context.MODE_PRIVATE, null);
++
++        this.database.beginTransaction();
++        this.database.execSQL(createDatabaseSQL);
++        this.database.endTransaction();
++    }
++
++    public void writeHongbaoLog(String sender, String content, String amount) {
++
++    }
++
++    public void getAllLogs() {
++
++    }
++}
+Index: app/src/main/res/xml/comment_preferences.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/res/xml/comment_preferences.xml	(revision )
++++ app/src/main/res/xml/comment_preferences.xml	(revision )
+@@ -0,0 +1,35 @@
++<?xml version="1.0" encoding="utf-8"?>
++<PreferenceScreen xmlns:tools="http://schemas.android.com/tools"
++                  xmlns:android="http://schemas.android.com/apk/res/android"
++                  tools:context=".SettingsActivity"
++                  android:icon="@null">
++    <PreferenceCategory
++            android:title="自动回复(Android 5.0以上系统)"
++            android:layout="@layout/preference_category">
++        <CheckBoxPreference
++                android:key="pref_comment_switch"
++                android:title="开启自动回复"
++                android:summary="在拆开其他人的红包后发送自动回复"
++                android:defaultValue="false"
++                android:layout="@layout/preference_checkbox"/>
++    </PreferenceCategory>
++    <PreferenceCategory
++            android:title="回复选项"
++            android:layout="@layout/preference_category">
++        <xyz.monkeytong.hongbao.activities.SeekBarPreference
++                android:key="pref_comment_delay"
++                android:title="延时发送回复"
++                pref_kind="pref_comment_delay"
++                android:layout="@layout/preference_checkbox"/>
++        <CheckBoxPreference
++                android:key="pref_comment_at"
++                android:title="\@发红包的人"
++                android:layout="@layout/preference_checkbox"
++                android:defaultValue="false"/>
++        <EditTextPreference
++                android:key="pref_comment_words"
++                android:title="自定义回复内容"
++                android:summary="@string/pref_comment_words_summary"
++                android:layout="@layout/preference_checkbox"/>
++    </PreferenceCategory>
++</PreferenceScreen>
+\ No newline at end of file
+Index: app/src/main/res/layout/preference_category.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/res/layout/preference_category.xml	(revision )
++++ app/src/main/res/layout/preference_category.xml	(revision )
+@@ -0,0 +1,23 @@
++<?xml version="1.0" encoding="utf-8"?>
++<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
++              android:layout_width="match_parent"
++              android:layout_height="wrap_content"
++              android:paddingLeft="16dp"
++              android:paddingRight="?android:attr/scrollbarSize">
++    <RelativeLayout
++            android:layout_width="wrap_content"
++            android:layout_height="wrap_content"
++            android:paddingTop="10dp"
++            android:layout_marginRight="10dp"
++            android:layout_weight="1">
++
++        <TextView android:id="@+android:id/title"
++                  android:layout_width="wrap_content"
++                  android:layout_height="wrap_content"
++                  android:singleLine="true"
++                  android:ellipsize="marquee"
++                  android:textColor="#d55849"
++                  android:textSize="16sp"
++                  android:fadingEdge="horizontal"/>
++    </RelativeLayout>
++</LinearLayout>
+\ No newline at end of file
+Index: app/src/main/res/layout/activity_preferences.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/res/layout/activity_preferences.xml	(revision )
++++ app/src/main/res/layout/activity_preferences.xml	(revision )
+@@ -0,0 +1,43 @@
++<?xml version="1.0" encoding="utf-8"?>
++
++<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
++              xmlns:tools="http://schemas.android.com/tools"
++              android:orientation="vertical"
++              android:layout_width="match_parent"
++              android:layout_height="match_parent">
++
++    <RelativeLayout android:layout_width="match_parent"
++                    android:layout_height="wrap_content"
++                    android:background="#d84e43"
++                    tools:context=".SettingsActivity"
++    >
++        <TextView android:layout_width="wrap_content" android:layout_height="60dp"
++                  android:id="@+id/settings_bar"
++                  android:text="@string/preference" android:textColor="#fde1b5"
++                  android:gravity="left|center_vertical|center_horizontal"
++                  android:elegantTextHeight="false" android:textSize="20sp"
++                  android:layout_toRightOf="@+id/preference_back"
++        />
++        <ImageView
++                android:layout_width="40dp"
++                android:layout_height="match_parent"
++                android:id="@+id/preference_back"
++                android:layout_marginLeft="10dp"
++                android:layout_marginRight="8dp"
++                android:clickable="true" android:onClick="performBack"
++                android:layout_alignBottom="@+id/settings_bar"
++                android:src="@mipmap/ic_back"/>
++        <ImageView android:layout_width="40dp" android:layout_height="match_parent" android:id="@+id/imageView3"
++                   android:clickable="true"
++                   android:onClick="enterAccessibilityPage"
++                   android:layout_alignParentRight="true"
++                   android:layout_marginRight="10dp" android:layout_marginLeft="8dp"
++                   android:padding="6dp" android:src="@mipmap/ic_refresh"
++                   android:layout_alignBottom="@+id/settings_bar"/>
++    </RelativeLayout>
++    <fragment android:layout_width="match_parent"
++              android:layout_height="match_parent"
++              android:id="@+id/preferences_fragment"
++              tools:layout="@android:layout/simple_list_item_1"
++              class="xyz.monkeytong.hongbao.fragments.GeneralSettingsFragment"/>
++</LinearLayout>
